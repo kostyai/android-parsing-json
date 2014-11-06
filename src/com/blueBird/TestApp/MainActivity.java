@@ -2,15 +2,18 @@ package com.blueBird.TestApp;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -26,7 +29,6 @@ import java.util.HashMap;
 public class MainActivity extends Activity {
 
     private ProgressDialog pDialog;
-
 
     // URL to get users JSON
     private static String url = "https://api.github.com/users";
@@ -52,12 +54,17 @@ public class MainActivity extends Activity {
 
     // Hashmap for ListView
     ArrayList<HashMap<String, String>> usersList;
+    ArrayList<String> images;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //For a short time
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
         setContentView(R.layout.main);
 
+        images = new ArrayList<String>();
         usersList = new ArrayList<HashMap<String, String>>();
 
         // Calling async task to get json
@@ -136,12 +143,30 @@ public class MainActivity extends Activity {
                         user.put(TAG_URL, urll);
                         user.put(TAG_AVATAR, ava);
 
+                        images.add(ava);
                         // adding user to user list
                         usersList.add(user);
                     }
+
+                    for (int i = 1; i < table.getChildCount(); ++i) {
+                        TableRow nextChild = (TableRow) table.getChildAt(i);
+                        View pic = nextChild.getChildAt(2);
+                        final int j = i - 1;
+                        pic.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+
+                                Intent intent = new Intent(MainActivity.this, ImageActivity.class);
+                                intent.putExtra("image", images.get(j));
+                                startActivity(intent);
+                            }
+                        });
+                    }
+
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
+
             } else {
                 Log.e("ServiceHandler", "Couldn't get any data from the url");
             }
@@ -164,14 +189,12 @@ public class MainActivity extends Activity {
             ((TextView) row.findViewById(R.id.FROM_CELL)).setText(item
                     .getString(TAG_URL));
 
-            ((ImageView) row.findViewById(R.id.TO_CELL)).setImageBitmap(getBitmapFromURL(item
-                    .getString(TAG_AVATAR)));
+            ((ImageView) row.findViewById(R.id.TO_CELL)).setImageBitmap(getBitmapFromURL(item.getString(TAG_AVATAR), 100, 100));
             return row;
         }
-
     }
 
-    public static Bitmap getBitmapFromURL(String src) {
+    public static Bitmap getBitmapFromURL(String src, int width, int height) {
         try {
             URL url = new URL(src);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -181,16 +204,13 @@ public class MainActivity extends Activity {
 
             BitmapFactory.Options o = new BitmapFactory.Options();
             o.inJustDecodeBounds = true;
-            BitmapFactory.decodeStream(input, null,o);
-            //The new size we want to scale to
-            final int REQUIRED_WIDTH=100;
-            final int REQUIRED_HIGHT=100;
+            BitmapFactory.decodeStream(input, null, o);
             //Find the correct scale value. It should be the power of 2.
-            int scale=1;
-            while(o.outWidth/scale/2>=REQUIRED_WIDTH && o.outHeight/scale/2>=REQUIRED_HIGHT)
-                scale*=2;
-            o.inJustDecodeBounds=false;
-            o.inSampleSize=scale;
+            int scale = 1;
+            while (o.outWidth / scale / 2 >= width && o.outHeight / scale / 2 >= height)
+                scale *= 2;
+            o.inJustDecodeBounds = false;
+            o.inSampleSize = scale;
 
             input.close();
             connection = (HttpURLConnection) url.openConnection();
